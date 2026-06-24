@@ -1,13 +1,16 @@
-import os, base64, time
+import os, base64, time, smtplib
+from email.message import EmailMessage
+
 import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
 
 load_dotenv()
-api_key = os.getenv("GROQ_API_KEY")
+
+api_key = st.secrets.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
 
 if not api_key:
-    st.error("Add GROQ_API_KEY in .env file")
+    st.error("Add GROQ_API_KEY in Streamlit Secrets or .env file")
     st.stop()
 
 client = Groq(api_key=api_key)
@@ -24,6 +27,38 @@ def file_to_base64(path):
             return base64.b64encode(f.read()).decode()
     except:
         return ""
+
+def send_contact_email(name, email, message):
+    email_user = st.secrets.get("EMAIL_USER") or os.getenv("EMAIL_USER")
+    email_pass = st.secrets.get("EMAIL_PASS") or os.getenv("EMAIL_PASS")
+
+    if not email_user or not email_pass:
+        st.error("Add EMAIL_USER and EMAIL_PASS in Streamlit Secrets")
+        return False
+
+    msg = EmailMessage()
+    msg["Subject"] = f"New Portfolio Contact from {name}"
+    msg["From"] = email_user
+    msg["To"] = "vishnukumarvishnukumar919@gmail.com"
+
+    msg.set_content(f"""
+New message from your portfolio website:
+
+Name: {name}
+Email: {email}
+
+Message:
+{message}
+""")
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(email_user, email_pass)
+            smtp.send_message(msg)
+        return True
+    except Exception as e:
+        st.error(f"Email sending failed: {e}")
+        return False
 
 bg = file_to_base64("background.webp")
 
@@ -98,11 +133,6 @@ st.markdown(f"""
     border: 1px solid rgba(255,255,255,.12);
 }}
 
-.side-card:hover {{
-    background: linear-gradient(90deg,rgba(255,79,216,.4),rgba(56,189,248,.25));
-    box-shadow: 0 0 20px rgba(56,189,248,.28);
-}}
-
 .hero-title {{
     font-size: 64px;
     font-weight: 950;
@@ -129,12 +159,6 @@ st.markdown(f"""
     min-height: 120px;
 }}
 
-.mini-card:hover {{
-    transform: translateY(-4px);
-    transition: .25s;
-    box-shadow: 0 0 25px rgba(255,79,216,.25);
-}}
-
 .badge {{
     display:inline-block;
     padding:8px 14px;
@@ -151,30 +175,6 @@ st.markdown(f"""
     border: 1px solid rgba(255,255,255,.15);
 }}
 
-.typing {{
-    animation: glow 1s infinite alternate;
-}}
-
-@keyframes glow {{
-    from {{text-shadow:0 0 8px #38bdf8;}}
-    to {{text-shadow:0 0 25px #ff4fd8;}}
-}}
-
-.particle {{
-    position: fixed;
-    width: 7px;
-    height: 7px;
-    background: #38bdf8;
-    border-radius: 50%;
-    opacity: .65;
-    animation: float 9s infinite linear;
-}}
-
-@keyframes float {{
-    0% {{transform:translateY(105vh);}}
-    100% {{transform:translateY(-10vh);}}
-}}
-
 .stButton button {{
     border-radius: 15px;
     background: linear-gradient(90deg,#ff4fd8,#4f46e5);
@@ -189,12 +189,6 @@ st.markdown(f"""
     border-radius: 12px;
 }}
 </style>
-
-<div class="particle" style="left:8%;animation-delay:0s;"></div>
-<div class="particle" style="left:28%;animation-delay:2s;"></div>
-<div class="particle" style="left:50%;animation-delay:4s;"></div>
-<div class="particle" style="left:73%;animation-delay:1s;"></div>
-<div class="particle" style="left:91%;animation-delay:3s;"></div>
 """, unsafe_allow_html=True)
 
 with st.sidebar:
@@ -284,7 +278,7 @@ if final_prompt:
 
     with st.chat_message("assistant"):
         box = st.empty()
-        box.markdown('<h4 class="typing">🤖 AI is typing...</h4>', unsafe_allow_html=True)
+        box.markdown("🤖 AI is typing...")
 
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -392,7 +386,12 @@ with c1:
         sent = st.form_submit_button("Send Message")
 
         if sent:
-            st.success("Message saved! SMTP email connection can be added later.")
+            if name and email and message:
+                success = send_contact_email(name, email, message)
+                if success:
+                    st.success("✅ Message sent successfully! I will contact you soon.")
+            else:
+                st.warning("Please fill all details.")
 
 with c2:
     st.markdown("""
