@@ -37,6 +37,40 @@ def send_contact_email(name, email, message):
         return False
 
     msg = EmailMessage()
+    msg["Subject"] = f"📩 New Contact Request from {name}"
+    msg["From"] = email_user
+    msg["To"] = "vishnukumarvishnukumar919@gmail.com"
+    msg["Reply-To"] = email
+
+    msg.set_content(f"""
+Hello Vishnu,
+
+🎉 You have received a new contact request from your portfolio website.
+
+----------------------------------------
+👤 Name  : {name}
+📧 Email : {email}
+
+💬 Message:
+{message}
+----------------------------------------
+
+You can reply directly to this email to contact the sender.
+
+Regards,
+Vishnu AI Portfolio
+""")
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(email_user, email_pass)
+            smtp.send_message(msg)
+        return True
+    except Exception as e:
+        st.error(f"Email sending failed: {e}")
+        return False
+
+    msg = EmailMessage()
     msg["Subject"] = f"New Portfolio Contact from {name}"
     msg["From"] = email_user
     msg["To"] = "vishnukumarvishnukumar919@gmail.com"
